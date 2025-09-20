@@ -1,17 +1,26 @@
 import { Module } from '@nestjs/common';
-import { AppController } from './app.controller';
-import { AppService } from './app.service';
-import { TelemetryModule } from './telemetry/telemetry.module';
-import { databaseProviders } from 'database/database.providers';
+import * as dotenv from 'dotenv';
 import { MongooseModule } from '@nestjs/mongoose';
+import { env } from 'process';
+import { TelemetryModule } from './telemetry/telemetry.module';
+import { CacheModule } from '@nestjs/cache-manager';
+import { ThrottlerModule } from '@nestjs/throttler';
+
+dotenv.config();
 
 @Module({
   imports: [
     TelemetryModule,
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
-    MongooseModule.forRoot(process.env.MONGO_URI || ''),
+    MongooseModule.forRoot(env.MONGO_URI || ''),
+    ThrottlerModule.forRoot({
+      throttlers: [
+        {
+          ttl: 60,
+          limit: 10,
+        },
+      ],
+    }),
+    CacheModule.register(),
   ],
-  controllers: [AppController],
-  providers: [AppService, ...databaseProviders],
 })
 export class AppModule {}
