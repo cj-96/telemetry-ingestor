@@ -1,4 +1,3 @@
-// create-cat.dto.ts
 import { IsString, IsNumber, IsNotEmpty, IsISO8601 } from 'class-validator';
 
 class Metric {
