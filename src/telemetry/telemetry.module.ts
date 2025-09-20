@@ -1,15 +1,14 @@
 import { Module } from '@nestjs/common';
 import { TelemetryController } from './telemetry.controller';
 import { TelemetryService } from './telemetry.service';
-import { Mongoose } from 'mongoose';
+import { MongooseModule } from '@nestjs/mongoose';
+import { Telemetry, TelemetrySchema } from './schemas/telemetry.schema';
 
 @Module({
   imports: [
-    Mongoose.apply({
-      uri: process.env.MONGODB_URI,
-      useNewUrlParser: true,
-      useUnifiedTopology: true,
-    }),
+    MongooseModule.forFeature([
+      { name: Telemetry.name, schema: TelemetrySchema },
+    ]),
   ],
   controllers: [TelemetryController],
   providers: [TelemetryService],
