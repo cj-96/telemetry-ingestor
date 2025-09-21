@@ -1,28 +1,38 @@
-import { Controller, Get, Post } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Post,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 import { TelemetryService } from './telemetry.service';
 import { Telemetry } from './schemas/telemetry.schema';
-import { Throttle } from '@nestjs/throttler';
+import { CreateTelemetryDto } from './dto/create-telemetry.dto';
+import { DeviceThrottlerGuard } from 'src/guards/device-throttle.guard';
 
 @Controller('telemetry')
 export class TelemetryController {
   constructor(private readonly telemetryService: TelemetryService) {}
 
-  @Throttle({ default: { limit: 100, ttl: 60 } })
+  @UseGuards(DeviceThrottlerGuard)
   @Post()
-  create() {
-    return this.telemetryService.create({
-      deviceId: 'device123',
-      siteId: 'site456',
-      ts: new Date().toISOString(),
-      metrics: {
-        temperature: 22.5,
-        humidity: 60,
-      },
-    });
+  create(@Body() createTelemetryDto: CreateTelemetryDto) {
+    return this.telemetryService.create(createTelemetryDto);
+  }
+
+  @Get(':siteId/summary')
+  async getSummary(
+    @Param('siteId') siteId: string,
+    @Query('from') from?: string,
+    @Query('to') to?: string,
+  ) {
+    return await this.telemetryService.getSummary(siteId, from, to);
   }
 
   @Get('latest')
-  getLatest(): Promise<Telemetry | null> {
+  getLatest(): Promise<Telemetry> {
     return this.telemetryService.getLatest();
   }
 }
