@@ -12,6 +12,9 @@ export const MetricsSchema = SchemaFactory.createForClass(Metrics);
 
 @Schema()
 export class Telemetry {
+  @Prop({ required: true, unique: true, index: true }) // <-- UNIQUE INDEX
+  eventId!: string;
+
   @Prop({ required: true, type: String })
   deviceId!: string;
 

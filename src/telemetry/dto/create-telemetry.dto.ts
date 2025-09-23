@@ -13,6 +13,10 @@ class Metric {
 export class CreateTelemetryDto {
   @IsString()
   @IsNotEmpty()
+  eventId!: string; // <-- IDEMPOTENCY KEY
+
+  @IsString()
+  @IsNotEmpty()
   deviceId!: string;
 
   @IsString()

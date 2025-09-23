@@ -6,7 +6,7 @@ import { TelemetryModule } from './telemetry/telemetry.module';
 import { CacheModule } from '@nestjs/cache-manager';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { ThrottlerStorageRedisService } from '@nest-lab/throttler-storage-redis';
-import { redisStore } from 'cache-manager-redis-store';
+import { createKeyv } from '@keyv/redis';
 
 dotenv.config();
 
@@ -19,11 +19,18 @@ const redisConfig = {
   imports: [
     TelemetryModule,
     MongooseModule.forRoot(env.MONGO_URI || ''),
-    CacheModule.register({
-      store: redisStore,
-      url: process.env.REDIS_URL || 'redis://localhost:6379',
-      ttl: 60, // seconds
-      max: 100, // max items in cache
+    CacheModule.registerAsync({
+      isGlobal: true,
+      useFactory: () => {
+        return {
+          stores: [
+            createKeyv(
+              `redis://${process.env.REDIS_HOST ?? 'localhost'}:${process.env.REDIS_PORT ?? 6379}`,
+            ),
+          ],
+          ttl: 600000, // default 10 minutes
+        };
+      },
     }),
     ThrottlerModule.forRoot({
       throttlers: [

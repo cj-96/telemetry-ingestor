@@ -28,7 +28,7 @@ export class TelemetryController {
     @Query('from') from?: string,
     @Query('to') to?: string,
   ) {
-    return await this.telemetryService.getSummary(siteId, from, to);
+    return await this.telemetryService.getTelemetrySummary(siteId, from, to);
   }
 
   @Get('latest')
