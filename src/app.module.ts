@@ -7,6 +7,8 @@ import { CacheModule } from '@nestjs/cache-manager';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { ThrottlerStorageRedisService } from '@nest-lab/throttler-storage-redis';
 import { createKeyv } from '@keyv/redis';
+import { APP_GUARD } from '@nestjs/core';
+import { DeviceThrottlerGuard } from './guards/device-throttle.guard';
 
 dotenv.config();
 
@@ -35,13 +37,19 @@ const redisConfig = {
     ThrottlerModule.forRoot({
       throttlers: [
         {
-          name: 'default',
-          ttl: 60,
+          ttl: 60 * 1000, // TTL in ms (may need to check your version units)
           limit: 10,
+          // optionally name, blockDuration, etc.
         },
       ],
       storage: new ThrottlerStorageRedisService(redisConfig),
     }),
+  ],
+  providers: [
+    {
+      provide: APP_GUARD,
+      useClass: DeviceThrottlerGuard,
+    },
   ],
 })
 export class AppModule {}

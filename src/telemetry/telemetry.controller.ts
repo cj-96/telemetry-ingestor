@@ -12,11 +12,11 @@ import { Telemetry } from './schemas/telemetry.schema';
 import { CreateTelemetryDto } from './dto/create-telemetry.dto';
 import { DeviceThrottlerGuard } from 'src/guards/device-throttle.guard';
 
+@UseGuards(DeviceThrottlerGuard)
 @Controller('telemetry')
 export class TelemetryController {
   constructor(private readonly telemetryService: TelemetryService) {}
 
-  @UseGuards(DeviceThrottlerGuard)
   @Post()
   create(@Body() createTelemetryDto: CreateTelemetryDto) {
     return this.telemetryService.create(createTelemetryDto);
