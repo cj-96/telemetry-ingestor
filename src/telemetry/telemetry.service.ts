@@ -78,9 +78,11 @@ export class TelemetryService {
     }
   }
 
-  async getLatest(): Promise<Telemetry> {
+  async getLatest(deviceId: string): Promise<Telemetry> {
     try {
-      const cached = await this.cacheManager.get<Telemetry>('latestTelemetry');
+      const cached = await this.cacheManager.get<Telemetry>(
+        `latestTelemetry:${deviceId}`,
+      );
       if (cached) {
         this.logger.log('Cache hit for latest telemetry');
         return cached;
@@ -88,7 +90,7 @@ export class TelemetryService {
 
       this.logger.log('Cache miss for latest telemetry, querying database');
       const telemetryFromDb = await this.telemetryModel
-        .findOne()
+        .findOne({ deviceId })
         .sort({ ts: -1 })
         .lean()
         .exec();
@@ -99,7 +101,7 @@ export class TelemetryService {
 
       // Cache the result - don't fail if cache fails
       this.cacheManager
-        .set('latestTelemetry', telemetryFromDb)
+        .set(`latestTelemetry:${telemetryFromDb.deviceId}`, telemetryFromDb)
         .catch((error: unknown) => {
           const message =
             error instanceof Error ? error.message : String(error);
