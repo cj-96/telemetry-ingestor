@@ -1,4 +1,11 @@
-import { IsString, IsNumber, IsNotEmpty, IsISO8601 } from 'class-validator';
+import {
+  IsString,
+  IsNumber,
+  IsNotEmpty,
+  IsISO8601,
+  ValidateNested,
+} from 'class-validator';
+import { Type } from 'class-transformer';
 
 class Metric {
   @IsNumber()
@@ -13,10 +20,6 @@ class Metric {
 export class CreateTelemetryDto {
   @IsString()
   @IsNotEmpty()
-  eventId!: string; // <-- IDEMPOTENCY KEY
-
-  @IsString()
-  @IsNotEmpty()
   deviceId!: string;
 
   @IsString()
@@ -26,5 +29,8 @@ export class CreateTelemetryDto {
   @IsISO8601()
   ts!: string;
 
+  @ValidateNested()
+  @Type(() => Metric)
+  @IsNotEmpty()
   metrics!: Metric;
 }

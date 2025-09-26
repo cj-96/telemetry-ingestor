@@ -1,23 +1,39 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
+import { Logger } from 'nestjs-pino';
 import { ValidationPipe, VersioningType } from '@nestjs/common';
-import * as bodyParser from 'body-parser';
+import { json, urlencoded } from 'express';
+import { RequestLoggingMiddleware } from './middleware/request-logging.middleware';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
-  await app.listen(process.env.PORT ?? 3000);
-
-  app.enableVersioning({
-    type: VersioningType.URI,
+  const app = await NestFactory.create(AppModule, {
+    bufferLogs: true,
   });
 
+  // 1️⃣ Use Pino logger globally
+  app.useLogger(app.get(Logger));
+
+  // 2️⃣ Body parsers first so req.body is available
+  app.use(json({ limit: '100kb' }));
+  app.use(urlencoded({ extended: true, limit: '100kb' }));
+
+  // 3️⃣ Request logging middleware after body is parsed
+  app.use(RequestLoggingMiddleware);
+
+  // 4️⃣ Global prefix
+  app.setGlobalPrefix('api');
+
+  // 5️⃣ Versioning
+  app.enableVersioning({ type: VersioningType.URI });
+
+  // 6️⃣ Global pipes (validation, transformation)
   app.useGlobalPipes(
     new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true }),
   );
 
-  app.use(bodyParser.json({ limit: '100kb' }));
-  app.use(bodyParser.urlencoded({ limit: '100kb', extended: true }));
-
-  app.useGlobalFilters();
+  await app.listen(process.env.PORT ?? 3000);
 }
-bootstrap();
+bootstrap().catch((err) => {
+  console.error('Failed to bootstrap app', err);
+  process.exit(1);
+});
