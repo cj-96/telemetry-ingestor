@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import * as dotenv from 'dotenv';
 import { MongooseModule } from '@nestjs/mongoose';
 import { env } from 'process';
@@ -12,6 +12,8 @@ import { HealthModule } from './health/health.module';
 import * as redisStore from 'cache-manager-redis-store';
 import { LoggerModule } from 'nestjs-pino';
 import { AllExceptionsFilter } from './filters/all-exceptions.filter';
+import { RequestLoggingMiddleware } from './middleware/request-logging.middleware';
+import { IngestTokenGuard } from './guards/ingest-token.guard';
 
 dotenv.config();
 
@@ -65,7 +67,15 @@ const redisConfig = {
       provide: APP_GUARD,
       useClass: DeviceThrottlerGuard,
     },
+    {
+      provide: APP_GUARD,
+      useClass: IngestTokenGuard,
+    },
     { provide: APP_FILTER, useClass: AllExceptionsFilter },
   ],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer.apply(RequestLoggingMiddleware).forRoutes('*'); // Apply to all routes
+  }
+}

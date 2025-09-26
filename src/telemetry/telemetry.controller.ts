@@ -5,8 +5,8 @@ import {
   Param,
   Post,
   Query,
+  UseGuards,
   UseInterceptors,
-  UsePipes,
   Version,
 } from '@nestjs/common';
 import { TelemetryService } from './telemetry.service';
@@ -14,7 +14,7 @@ import { Telemetry } from './schemas/telemetry.schema';
 import { CreateTelemetryDto } from './dto/create-telemetry.dto';
 import { CacheTTL } from '@nestjs/cache-manager';
 import { CustomCacheInterceptor } from 'src/interceptors/custom-cache.interceptor';
-import { EndpointParamsValidationPipe } from 'src/pipes/endpoint-params-validation.pipe';
+import { EndpointParamsValidationGuard } from 'src/guards/endpoint-params-validation.guard';
 
 @Controller()
 export class TelemetryController {
@@ -29,9 +29,9 @@ export class TelemetryController {
   }
 
   @Get('site/:siteId/summary')
-  @UsePipes(EndpointParamsValidationPipe)
+  @UseGuards(EndpointParamsValidationGuard)
   @UseInterceptors(CustomCacheInterceptor)
-  @CacheTTL(60) // Cache for 30 seconds
+  @CacheTTL(60000) // Cache for 30 seconds
   @Version('1')
   async getSummary(
     @Param('siteId') siteId: string,
@@ -42,9 +42,9 @@ export class TelemetryController {
   }
 
   @Get('device/:deviceId/latest')
-  @UsePipes(EndpointParamsValidationPipe)
+  @UseGuards(EndpointParamsValidationGuard)
   @UseInterceptors(CustomCacheInterceptor)
-  @CacheTTL(60) // Cache for 30 seconds
+  @CacheTTL(60000) // Cache for 30 seconds
   @Version('1')
   getLatest(@Param('deviceId') deviceId: string): Promise<Telemetry> {
     return this.telemetryService.getLatest(deviceId);

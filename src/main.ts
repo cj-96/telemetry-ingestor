@@ -3,7 +3,6 @@ import { AppModule } from './app.module';
 import { Logger } from 'nestjs-pino';
 import { ValidationPipe, VersioningType } from '@nestjs/common';
 import { json, urlencoded } from 'express';
-import { RequestLoggingMiddleware } from './middleware/request-logging.middleware';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, {
@@ -16,9 +15,6 @@ async function bootstrap() {
   // 2️⃣ Body parsers first so req.body is available
   app.use(json({ limit: '100kb' }));
   app.use(urlencoded({ extended: true, limit: '100kb' }));
-
-  // 3️⃣ Request logging middleware after body is parsed
-  app.use(RequestLoggingMiddleware);
 
   // 4️⃣ Global prefix
   app.setGlobalPrefix('api');

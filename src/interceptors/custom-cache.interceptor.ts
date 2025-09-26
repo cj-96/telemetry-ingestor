@@ -1,17 +1,6 @@
-import {
-  Injectable,
-  ExecutionContext,
-  CallHandler,
-  Inject,
-} from '@nestjs/common';
-import {
-  CacheInterceptor,
-  CACHE_MANAGER,
-  CACHE_TTL_METADATA,
-} from '@nestjs/cache-manager';
+import { Injectable, ExecutionContext, Inject } from '@nestjs/common';
+import { CacheInterceptor, CACHE_MANAGER } from '@nestjs/cache-manager';
 import type { Cache } from 'cache-manager';
-import { Observable, throwError } from 'rxjs';
-import { tap, catchError } from 'rxjs/operators';
 import { PinoLogger } from 'nestjs-pino';
 import { Reflector } from '@nestjs/core';
 import type { Request } from 'express';
@@ -39,6 +28,8 @@ export class CustomCacheInterceptor extends CacheInterceptor {
 
     const routePath = request.path;
 
+    this.logger.info('Cache key generated');
+
     // Site summary endpoint
     if (routePath.includes('site') && routePath.includes('summary')) {
       const siteId = encodeURIComponent(request.params.siteId || '');
@@ -55,45 +46,5 @@ export class CustomCacheInterceptor extends CacheInterceptor {
 
     // Fallback to default key strategy
     return super.trackBy(context);
-  }
-
-  /**
-   * Intercepts response:
-   * - Writes to cache with route-specific key + TTL
-   * - Logs cache set failures (non-blocking)
-   */
-  override async intercept(
-    context: ExecutionContext,
-    next: CallHandler,
-  ): Promise<Observable<any>> {
-    const cacheKey = this.trackBy(context);
-    if (!cacheKey) return super.intercept(context, next);
-
-    const ttl =
-      this.reflector.get<number>(CACHE_TTL_METADATA, context.getHandler()) ??
-      60;
-
-    return next.handle().pipe(
-      tap((data) => {
-        this.cacheManager.set(cacheKey, data, ttl).catch((err) =>
-          this.logger.error(
-            {
-              event: 'cache_set_failed',
-              cacheKey,
-              reason: (err as Error)?.message,
-              stack:
-                process.env.NODE_ENV !== 'production'
-                  ? (err as Error)?.stack
-                  : undefined,
-            },
-            'Cache set failed',
-          ),
-        );
-      }),
-      catchError((err: unknown) => {
-        // Pass through service/business errors for global exception filter
-        return throwError(() => err);
-      }),
-    );
   }
 }

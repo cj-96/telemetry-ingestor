@@ -63,6 +63,7 @@ export class TelemetryService {
         reason: error instanceof Error ? error.message : String(error),
         stack: error instanceof Error ? error.stack : undefined,
       });
+      console.error(error);
       throw new InternalServerErrorException(
         'Failed to create telemetry record(s)',
       );
@@ -104,18 +105,6 @@ export class TelemetryService {
    */
   async getLatest(deviceId: string): Promise<Telemetry> {
     try {
-      const cached = await this.cacheManager.get<Telemetry>(
-        `latestTelemetry:${deviceId}`,
-      );
-      if (cached) {
-        this.logger.info({
-          event: 'cache_hit',
-          deviceId,
-          message: 'Cache hit for latest telemetry',
-        });
-        return cached;
-      }
-
       this.logger.info({
         event: 'cache_miss',
         deviceId,
@@ -158,6 +147,11 @@ export class TelemetryService {
     to?: string,
   ): Promise<SummaryResult> {
     try {
+      this.logger.info({
+        event: 'cache_miss',
+        siteId,
+        message: 'Cache miss, querying DB',
+      });
       const match: FilterQuery<TelemetryDocument> = { siteId };
       if (from && to) {
         match.ts = { $gte: new Date(from), $lte: new Date(to) };
