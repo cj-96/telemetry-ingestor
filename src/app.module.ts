@@ -1,4 +1,4 @@
-import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
+import { Module } from '@nestjs/common';
 import * as dotenv from 'dotenv';
 import { MongooseModule } from '@nestjs/mongoose';
 import { env } from 'process';
@@ -12,7 +12,6 @@ import { HealthModule } from './health/health.module';
 import * as redisStore from 'cache-manager-redis-store';
 import { LoggerModule } from 'nestjs-pino';
 import { AllExceptionsFilter } from './filters/all-exceptions.filter';
-import { RequestLoggingMiddleware } from './middleware/request-logging.middleware';
 import { IngestTokenGuard } from './guards/ingest-token.guard';
 
 dotenv.config();
@@ -47,18 +46,27 @@ const redisConfig = {
     }),
     LoggerModule.forRoot({
       pinoHttp: {
-        level: process.env.NODE_ENV === 'development' ? 'debug' : 'info',
+        // 👇 redact sensitive fields from logs
+        redact: {
+          paths: [
+            'req.headers.authorization',
+            'req.headers.cookie',
+            'req.headers["x-api-key"]',
+          ],
+          remove: true,
+        },
         transport:
-          process.env.NODE_ENV === 'development'
+          process.env.NODE_ENV !== 'production'
             ? {
                 target: 'pino-pretty',
                 options: {
-                  colorize: true, // 🎨 colors
-                  translateTime: 'SYS:standard', // ⏱ human time
-                  singleLine: false, // pretty multiline logs
+                  singleLine: true,
+                  colorize: true,
+                  translateTime: 'SYS:standard',
+                  ignore: 'pid,hostname',
                 },
               }
-            : undefined, // 🚀 in prod, log pure JSON
+            : undefined,
       },
     }),
   ],
@@ -74,8 +82,4 @@ const redisConfig = {
     { provide: APP_FILTER, useClass: AllExceptionsFilter },
   ],
 })
-export class AppModule implements NestModule {
-  configure(consumer: MiddlewareConsumer) {
-    consumer.apply(RequestLoggingMiddleware).forRoutes('*'); // Apply to all routes
-  }
-}
+export class AppModule {}

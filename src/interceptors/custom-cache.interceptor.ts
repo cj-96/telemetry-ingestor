@@ -1,7 +1,6 @@
 import { Injectable, ExecutionContext, Inject } from '@nestjs/common';
 import { CacheInterceptor, CACHE_MANAGER } from '@nestjs/cache-manager';
 import type { Cache } from 'cache-manager';
-import { PinoLogger } from 'nestjs-pino';
 import { Reflector } from '@nestjs/core';
 import type { Request } from 'express';
 
@@ -9,11 +8,9 @@ import type { Request } from 'express';
 export class CustomCacheInterceptor extends CacheInterceptor {
   constructor(
     @Inject(CACHE_MANAGER) protected readonly cacheManager: Cache,
-    private readonly logger: PinoLogger,
     protected readonly reflector: Reflector,
   ) {
     super(cacheManager, reflector);
-    this.logger.setContext(CustomCacheInterceptor.name);
   }
 
   /**
@@ -27,8 +24,6 @@ export class CustomCacheInterceptor extends CacheInterceptor {
     if (request.method !== 'GET') return undefined;
 
     const routePath = request.path;
-
-    this.logger.info('Cache key generated');
 
     // Site summary endpoint
     if (routePath.includes('site') && routePath.includes('summary')) {

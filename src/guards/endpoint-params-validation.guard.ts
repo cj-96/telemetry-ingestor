@@ -50,28 +50,18 @@ export class EndpointParamsValidationGuard implements CanActivate {
         }
 
         if (!from || !to || !isISODate(from) || !isISODate(to)) {
-          this.logger.warn(
-            { siteId, from, to, action: 'validateParams' },
-            'Invalid from/to timestamps',
-          );
-          throw new BadRequestException('from/to must be valid ISO timestamps');
+          throw new BadRequestException('Dates must be valid ISO timestamps');
         }
 
         if (!isFromBeforeTo(from, to)) {
-          this.logger.warn(
-            { siteId, from, to, action: 'validateParams' },
-            '"from" must be before "to"',
+          throw new BadRequestException(
+            'Starting Date must be before the Ending Date',
           );
-          throw new BadRequestException('from must be before to');
         }
       }
 
       // Validate deviceId if present
       if (deviceId && !devIdPattern.test(deviceId)) {
-        this.logger.warn(
-          { deviceId, action: 'validateParams' },
-          'Invalid deviceId format',
-        );
         throw new BadRequestException('Invalid deviceId');
       }
 

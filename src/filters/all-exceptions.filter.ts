@@ -14,7 +14,6 @@ import { Response, Request } from 'express';
 @Catch()
 export class AllExceptionsFilter implements ExceptionFilter {
   constructor(@Inject(PinoLogger) private readonly logger: PinoLogger) {
-    // Set context for structured logging
     this.logger.setContext(AllExceptionsFilter.name);
   }
 
@@ -23,62 +22,84 @@ export class AllExceptionsFilter implements ExceptionFilter {
     const response = ctx.getResponse<Response>();
     const request = ctx.getRequest<Request>();
 
-    // Default status and client message
     let status = HttpStatus.INTERNAL_SERVER_ERROR;
-    let clientMessage = 'Internal server error';
+    let errorResponse: {
+      statusCode: number;
+      error: string;
+      message: string | string[];
+    } = {
+      statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
+      error: 'Internal Server Error',
+      message: 'Internal server error',
+    };
 
-    // Handle known HTTP exceptions
     if (exception instanceof HttpException) {
       status = exception.getStatus();
-      const res = exception.getResponse();
-      clientMessage = typeof res === 'string' ? res : 'Request failed';
+      const exceptionResponse = exception.getResponse();
 
-      // Optional debug log for HTTP errors
-      this.logger.debug(
-        { path: request.url, method: request.method, status },
-        'HTTP exception caught',
-      );
-    }
+      if (typeof exceptionResponse === 'string') {
+        errorResponse = {
+          statusCode: status,
+          error: HttpStatus[status] ?? 'Error',
+          message: exceptionResponse,
+        };
+      } else if (typeof exceptionResponse === 'object') {
+        const res = exceptionResponse as Record<string, any>;
+        errorResponse = {
+          statusCode: status,
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+          error: res.error ?? HttpStatus[status] ?? 'Error',
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+          message: res.message ?? 'Unexpected error',
+        };
+      }
 
-    // Convert unknown exceptions to Error object
-    const err =
-      exception instanceof Error ? exception : new Error(String(exception));
+      if (
+        status >= HttpStatus.BAD_REQUEST &&
+        status < HttpStatus.INTERNAL_SERVER_ERROR
+      ) {
+        this.logger.warn(
+          {
+            path: request.url,
+            method: request.method,
+            ...errorResponse,
+          },
+          'Client-side error (4xx)',
+        );
+      } else {
+        this.logger.error(
+          {
+            path: request.url,
+            method: request.method,
+            ...errorResponse,
+          },
+          'Server-side error (5xx)',
+        );
+      }
+    } else {
+      const err =
+        exception instanceof Error ? exception : new Error(String(exception));
 
-    // Log the error with full context
-    this.logger.error(
-      {
-        path: request.url,
-        method: request.method,
-        status,
-        errorName: err.name,
-        errorMessage: err.message,
-        stack: process.env.NODE_ENV !== 'production' ? err.stack : undefined,
-      },
-      'Unhandled exception',
-    );
-
-    // Optional warn for 4xx errors
-    if (
-      status >= HttpStatus.BAD_REQUEST &&
-      status < HttpStatus.INTERNAL_SERVER_ERROR
-    ) {
-      this.logger.warn(
+      this.logger.error(
         {
           path: request.url,
           method: request.method,
           status,
-          message: clientMessage,
+          errorName: err.name,
+          errorMessage: err.message,
+          stack: process.env.NODE_ENV !== 'production' ? err.stack : undefined,
         },
-        'Client error',
+        'Unhandled exception',
       );
+
+      errorResponse = {
+        statusCode: status,
+        error: 'Internal Server Error',
+        message: 'Internal server error',
+      };
     }
 
-    // Respond safely to client
-    response.status(status).json({
-      statusCode: status,
-      message: clientMessage,
-      // Include stack trace only in non-production environments
-      ...(process.env.NODE_ENV !== 'production' && { stack: err.stack }),
-    });
+    // 🚀 Always send consistent error response
+    response.status(status).json(errorResponse);
   }
 }
