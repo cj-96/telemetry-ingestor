@@ -74,10 +74,10 @@ export class TelemetryService {
     await Promise.all(
       saved.map((t) =>
         this.cacheManager
-          .get<Telemetry>(`latestTelemetry:${t.deviceId}`)
+          .get<Telemetry>(`latest:${t.deviceId}`)
           .then((existing) => {
             if (!existing || new Date(t.ts) > new Date(existing.ts)) {
-              return this.cacheManager.set(`latestTelemetry:${t.deviceId}`, t);
+              return this.cacheManager.set(`latest:${t.deviceId}`, t);
             }
           })
           .catch((err: unknown) => {
