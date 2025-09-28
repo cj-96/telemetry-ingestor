@@ -9,12 +9,18 @@ import {
 } from '@nestjs/common';
 import { PinoLogger } from 'nestjs-pino';
 import { Response, Request } from 'express';
+import { ConfigService } from '@nestjs/config';
 
 @Injectable()
 @Catch()
 export class AllExceptionsFilter implements ExceptionFilter {
-  constructor(@Inject(PinoLogger) private readonly logger: PinoLogger) {
+  private readonly nodeEnv: string;
+  constructor(
+    @Inject(PinoLogger) private readonly logger: PinoLogger,
+    private readonly configService: ConfigService,
+  ) {
     this.logger.setContext(AllExceptionsFilter.name);
+    this.nodeEnv = this.configService.get<string>('NODE_ENV') || 'development';
   }
 
   catch(exception: unknown, host: ArgumentsHost) {
@@ -87,7 +93,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
           status,
           errorName: err.name,
           errorMessage: err.message,
-          stack: process.env.NODE_ENV !== 'production' ? err.stack : undefined,
+          stack: this.nodeEnv !== 'production' ? err.stack : undefined,
         },
         'Unhandled exception',
       );

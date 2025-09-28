@@ -1,4 +1,5 @@
 import { Controller, Get } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import {
   HealthCheck,
   HealthCheckResult,
@@ -11,14 +12,20 @@ import Redis from 'ioredis';
 @Controller('health')
 export class HealthController {
   private readonly redis: Redis;
+  private readonly redisHost: string;
+  private readonly redisPort: number;
+
   constructor(
     private health: HealthCheckService,
     private mongoose: MongooseHealthIndicator,
     private readonly redisIndicator: RedisHealthIndicator,
+    private readonly configService: ConfigService,
   ) {
+    this.redisHost = this.configService.get<string>('REDIS_HOST')!;
+    this.redisPort = this.configService.get<number>('REDIS_PORT')!;
     this.redis = new Redis({
-      host: process.env.REDIS_HOST,
-      port: process.env.REDIS_PORT ? parseInt(process.env.REDIS_PORT) : 6379,
+      host: this.redisHost,
+      port: this.redisPort,
     });
   }
 

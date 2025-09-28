@@ -13,8 +13,8 @@ import { TelemetryService } from './telemetry.service';
 import { Telemetry } from './schemas/telemetry.schema';
 import { CreateTelemetryDto } from './dto/create-telemetry.dto';
 import { CacheTTL } from '@nestjs/cache-manager';
-import { CustomCacheInterceptor } from 'src/interceptors/custom-cache.interceptor';
-import { EndpointParamsValidationGuard } from 'src/guards/endpoint-params-validation.guard';
+import { CustomCacheInterceptor } from 'src/common/interceptors/custom-cache.interceptor';
+import { EndpointParamsValidationGuard } from 'src/common/guards/endpoint-params-validation.guard';
 
 @Controller()
 export class TelemetryController {

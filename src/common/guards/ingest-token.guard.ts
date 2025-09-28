@@ -4,16 +4,14 @@ import {
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 
 @Injectable()
 export class IngestTokenGuard implements CanActivate {
   private readonly token: string;
 
-  constructor() {
-    if (!process.env.INGEST_TOKEN) {
-      throw new Error('INGEST_TOKEN environment variable is not set');
-    }
-    this.token = process.env.INGEST_TOKEN;
+  constructor(private readonly configService: ConfigService) {
+    this.token = this.configService.get<string>('INGEST_TOKEN')!;
   }
 
   canActivate(context: ExecutionContext): boolean {

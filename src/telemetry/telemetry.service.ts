@@ -13,9 +13,11 @@ import { Telemetry, TelemetryDocument } from './schemas/telemetry.schema';
 import axios from 'axios';
 import { SummaryResult } from './interfaces/SummaryResult.interface';
 import { PinoLogger } from 'nestjs-pino';
+import { ConfigService } from '@nestjs/config';
 
 @Injectable()
 export class TelemetryService {
+  private readonly webhookUrl: string;
   constructor(
     @InjectModel(Telemetry.name)
     private readonly telemetryModel: Model<TelemetryDocument>,
@@ -25,8 +27,10 @@ export class TelemetryService {
 
     @Inject(PinoLogger)
     private readonly logger: PinoLogger,
+    private readonly configService: ConfigService,
   ) {
     this.logger.setContext(TelemetryService.name);
+    this.webhookUrl = this.configService.get<string>('ALERT_WEBHOOK_URL')!;
   }
 
   /**
@@ -39,10 +43,7 @@ export class TelemetryService {
     dto: CreateTelemetryDto | CreateTelemetryDto[],
   ): Promise<Telemetry | Telemetry[]> {
     try {
-      const dtos = (Array.isArray(dto) ? dto : [dto]).map((d) => ({
-        ...d,
-        ts: new Date(d.ts), // Ensure ts is a Date
-      }));
+      const dtos = Array.isArray(dto) ? dto : [dto];
 
       const saved = await this.telemetryModel.insertMany(dtos);
 
@@ -56,14 +57,9 @@ export class TelemetryService {
     } catch (error: unknown) {
       this.logger.error({
         event: 'create_failed',
-        dtoCount: Array.isArray(dto) ? dto.length : 1,
-        deviceIds: Array.isArray(dto)
-          ? dto.map((d) => d.deviceId)
-          : [dto.deviceId],
         reason: error instanceof Error ? error.message : String(error),
-        stack: error instanceof Error ? error.stack : undefined,
+        err: error, // keep raw error for debugging
       });
-      console.error(error);
       throw new InternalServerErrorException(
         'Failed to create telemetry record(s)',
       );
@@ -264,11 +260,8 @@ export class TelemetryService {
    */
 
   async sendAlert(alert: Record<string, any>) {
-    const url = process.env.ALERT_WEBHOOK_URL;
-    if (!url) return;
-
     try {
-      await axios.post(url, alert, { timeout: 5000 });
+      await axios.post(this.webhookUrl, alert, { timeout: 5000 });
 
       this.logger.info(
         {
