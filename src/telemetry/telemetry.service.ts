@@ -10,7 +10,7 @@ import { CreateTelemetryDto } from './dto/create-telemetry.dto';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import type { Cache } from 'cache-manager';
 import { Telemetry, TelemetryDocument } from './schemas/telemetry.schema';
-import axios from 'axios';
+import axios, { AxiosError } from 'axios';
 import { SummaryResult } from './interfaces/SummaryResult.interface';
 import { PinoLogger } from 'nestjs-pino';
 import { ConfigService } from '@nestjs/config';
@@ -272,9 +272,9 @@ export class TelemetryService {
         },
         'Alert sent successfully',
       );
-    } catch (err: unknown) {
+    } catch (err: any) {
       let msg: string;
-      if (axios.isAxiosError(err)) {
+      if (err instanceof AxiosError) {
         msg = err.code === 'ECONNABORTED' ? 'Request timed out' : err.message;
       } else if (err instanceof Error) {
         msg = err.message;
