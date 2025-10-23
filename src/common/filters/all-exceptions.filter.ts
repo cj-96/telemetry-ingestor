@@ -1,111 +1,59 @@
+// filters/global-exception.filter.ts
 import {
-  ExceptionFilter,
-  Catch,
   ArgumentsHost,
+  Catch,
+  ExceptionFilter,
   HttpException,
   HttpStatus,
-  Injectable,
-  Inject,
 } from '@nestjs/common';
-import { PinoLogger } from 'nestjs-pino';
-import { Response, Request } from 'express';
-import { ConfigService } from '@nestjs/config';
+import { Request, Response } from 'express';
+import { Logger } from 'nestjs-pino';
 
-@Injectable()
+interface LogPayload {
+  timestamp: string;
+  path: string;
+  method: string;
+  status: number;
+  message: string | object;
+  stack?: string;
+}
+
 @Catch()
-export class AllExceptionsFilter implements ExceptionFilter {
-  private readonly nodeEnv: string;
-  constructor(
-    @Inject(PinoLogger) private readonly logger: PinoLogger,
-    private readonly configService: ConfigService,
-  ) {
-    this.logger.setContext(AllExceptionsFilter.name);
-    this.nodeEnv = this.configService.get<string>('NODE_ENV') || 'development';
-  }
+export class AllExceptionFilter implements ExceptionFilter {
+  constructor(private readonly logger: Logger) {}
 
-  catch(exception: unknown, host: ArgumentsHost) {
+  catch(exception: unknown, host: ArgumentsHost): void {
     const ctx = host.switchToHttp();
-    const response = ctx.getResponse<Response>();
-    const request = ctx.getRequest<Request>();
+    const res = ctx.getResponse<Response>();
+    const req = ctx.getRequest<Request>();
 
-    let status = HttpStatus.INTERNAL_SERVER_ERROR;
-    let errorResponse: {
-      statusCode: number;
-      error: string;
-      message: string | string[];
-    } = {
-      statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
-      error: 'Internal Server Error',
-      message: 'Internal server error',
+    const isHttpException = exception instanceof HttpException;
+    const status = isHttpException
+      ? exception.getStatus()
+      : HttpStatus.INTERNAL_SERVER_ERROR;
+
+    const message = isHttpException
+      ? exception.getResponse()
+      : ((exception as Error)?.message ?? 'Internal server error');
+
+    const payload: LogPayload = {
+      timestamp: new Date().toISOString(),
+      path: req.url,
+      method: req.method,
+      status,
+      message,
+      stack: exception instanceof Error ? exception.stack : undefined,
     };
 
-    if (exception instanceof HttpException) {
-      status = exception.getStatus();
-      const exceptionResponse = exception.getResponse();
+    // 🔹 Structured JSON log with severity level
+    this.logger.error(payload, 'Unhandled exception caught');
 
-      if (typeof exceptionResponse === 'string') {
-        errorResponse = {
-          statusCode: status,
-          error: HttpStatus[status] ?? 'Error',
-          message: exceptionResponse,
-        };
-      } else if (typeof exceptionResponse === 'object') {
-        const res = exceptionResponse as Record<string, any>;
-        errorResponse = {
-          statusCode: status,
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-          error: res.error ?? HttpStatus[status] ?? 'Error',
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-          message: res.message ?? 'Unexpected error',
-        };
-      }
-
-      if (
-        status >= HttpStatus.BAD_REQUEST &&
-        status < HttpStatus.INTERNAL_SERVER_ERROR
-      ) {
-        this.logger.warn(
-          {
-            path: request.url,
-            method: request.method,
-            ...errorResponse,
-          },
-          'Client-side error (4xx)',
-        );
-      } else {
-        this.logger.error(
-          {
-            path: request.url,
-            method: request.method,
-            ...errorResponse,
-          },
-          'Server-side error (5xx)',
-        );
-      }
-    } else {
-      const err =
-        exception instanceof Error ? exception : new Error(String(exception));
-
-      this.logger.error(
-        {
-          path: request.url,
-          method: request.method,
-          status,
-          errorName: err.name,
-          errorMessage: err.message,
-          stack: this.nodeEnv !== 'production' ? err.stack : undefined,
-        },
-        'Unhandled exception',
-      );
-
-      errorResponse = {
-        statusCode: status,
-        error: 'Internal Server Error',
-        message: 'Internal server error',
-      };
-    }
-
-    // 🚀 Always send consistent error response
-    response.status(status).json(errorResponse);
+    // 🔹 Consistent API response
+    res.status(status).json({
+      statusCode: status,
+      timestamp: payload.timestamp,
+      path: payload.path,
+      error: message,
+    });
   }
 }
