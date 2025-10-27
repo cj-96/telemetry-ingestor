@@ -11,8 +11,8 @@ import { DeviceThrottlerGuard } from './common/guards/device-throttle.guard';
 import { HealthModule } from './health/health.module';
 import * as redisStore from 'cache-manager-redis-store';
 import { LoggerModule } from 'nestjs-pino';
-import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 import { IngestTokenGuard } from './common/guards/ingest-token.guard';
+import { AllExceptionFilter } from './common/filters/all-exceptions.filter';
 
 @Module({
   imports: [
@@ -22,11 +22,27 @@ import { IngestTokenGuard } from './common/guards/ingest-token.guard';
       isGlobal: true,
       envFilePath: '.env',
       validationSchema: Joi.object({
+        // Mongo & Redis
         MONGO_URI: Joi.string().uri().required(),
         REDIS_HOST: Joi.string().required(),
         REDIS_PORT: Joi.number().default(6379),
+
+        // Alert webhook & token
         ALERT_WEBHOOK_URL: Joi.string().uri().required(),
         INGEST_TOKEN: Joi.string().required(),
+
+        // Kafka
+        KAFKA_BROKERS: Joi.string().required(),
+        KAFKA_CLIENT_ID: Joi.string().required(),
+        KAFKA_GROUP_ID: Joi.string().required(),
+        KAFKA_INGRESS_TOPIC: Joi.string().required(),
+        KAFKA_RETRY_TOPIC: Joi.string().required(),
+        KAFKA_DLQ_TOPIC: Joi.string().required(),
+
+        // Logging
+        LOG_LEVEL: Joi.string()
+          .valid('error', 'warn', 'info', 'debug', 'verbose')
+          .default('info'),
       }),
     }),
     MongooseModule.forRootAsync({
@@ -107,7 +123,7 @@ import { IngestTokenGuard } from './common/guards/ingest-token.guard';
       provide: APP_GUARD,
       useClass: IngestTokenGuard,
     },
-    { provide: APP_FILTER, useClass: AllExceptionsFilter },
+    { provide: APP_FILTER, useClass: AllExceptionFilter },
   ],
 })
 export class AppModule {}
